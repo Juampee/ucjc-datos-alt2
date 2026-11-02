@@ -1,5 +1,5 @@
 /**
- * <ucjc-datos> — Pieza DATOS (alternativa2) · DFE (76042) · Tienda UCJC
+ * <ucjc-pedidos> — Pieza DATOS (alternativa2) · DFE (76042) · Tienda UCJC
  *
  * Custom element en Vanilla JS, sin dependencias ni build.
  * Persistencia: IndexedDB (base "ucjc-datos-alt2").
@@ -298,4 +298,6 @@ class UcjcDatos extends HTMLElement {
   }
 }
 
-if (!customElements.get('ucjc-datos')) customElements.define('ucjc-datos', UcjcDatos);
+if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
+
+export default { nombre: 'datos', version: '0.2.0' };
