@@ -1,0 +1,14 @@
+{
+  "name": "ucjc-datos-alt2",
+  "version": "0.1.0",
+  "description": "Pieza Datos (alternativa2) - Tienda UCJC - DFE 76042 - custom element ucjc-datos",
+  "type": "module",
+  "main": "src/ucjc-datos.js",
+  "module": "src/ucjc-datos.js",
+  "files": ["src"],
+  "scripts": {
+    "start": "python3 -m http.server 8000"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

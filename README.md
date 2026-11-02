@@ -9,7 +9,6 @@ Implementación **alternativa2** de la pieza **Datos** (compite en A/B testing c
 | 1 | Juan Pedro Fabo… *(completar apellidos)* |
 | 2 | Pablo Martín |
 | 3 | Gonzalo Rivera *(completar apellido exacto)* |
-| 4 | *(cuarto integrante: completar nombre y apellidos)* |
 
 **Responsable:** Juan Pedro Fabo… *(completar apellidos)*
 
@@ -54,3 +53,17 @@ Ver [CONTRATOS.md](CONTRATOS.md). Formato: `ucjc:<pieza>:<verbo>@1`.
 ## Seguimiento
 
 Estimaciones y tiempos reales en [TIEMPOS.md](TIEMPOS.md).
+
+## Estructura
+
+```
+ucjc-datos-alt2/
+├── src/ucjc-datos.js   # custom element <ucjc-datos> (único archivo que cargará el shell)
+├── index.html          # demo local de la pieza sola, con datos fijos
+├── package.json
+├── README.md           # este archivo
+├── CONTRATOS.md        # eventos ucjc:<pieza>:<verbo>@1 (propuesta)
+└── TIEMPOS.md          # estimaciones y tiempos reales
+```
+
+Cuando el shell defina su contrato de carga, solo habrá que adaptar la URL del script de la release (`src/ucjc-datos.js` en el tag correspondiente).
