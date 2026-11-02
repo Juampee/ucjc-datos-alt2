@@ -6,11 +6,11 @@ Implementación **alternativa2** de la pieza **Datos** (compite en A/B testing c
 
 | # | Integrante |
 |---|------------|
-| 1 | Juan Pedro Fabo… *(completar apellidos)* |
-| 2 | Pablo Martín |
-| 3 | Gonzalo Rivera *(completar apellido exacto)* |
+| 1 | Juan Pedro Fabo…  |
+| 2 | Pablo bLANCO |
+| 3 | Gonzalo Civera |
 
-**Responsable:** Juan Pedro Fabo… *(completar apellidos)*
+**Responsable:** Juan Pedro Fabo…
 
 **Custom element:** `<ucjc-datos>`
 
