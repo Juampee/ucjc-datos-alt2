@@ -80,3 +80,11 @@ Requisito: **Node ≥ 20** (el workflow usa Node 22). Custom element canónico: 
 URL esperada: `https://juampee.github.io/ucjc-datos-alt2/v0.2.0/remote.js`.
 
 Los nombres de eventos se alinean en otra PR cuando el PR #2 de contratos esté firmado.
+
+### Tests
+
+```bash
+npm test
+```
+
+Comprueban el custom element, el `export default` y el flujo mínimo de eventos `@1`.
