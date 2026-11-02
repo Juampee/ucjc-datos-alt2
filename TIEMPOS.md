@@ -5,11 +5,11 @@
 
 | # | Miembro | Estimación (h equipo) |
 |---|---------|-----------------------|
-| 1 | Pablo | 1 h |
-| 2 | Gonzalo | 1 h |
-| 3 | Juan Pedro | 1 h |
+| 1 | Pablo | 2 h |
+| 2 | Gonzalo | 2 h |
+| 3 | Juan Pedro | 2 h |
 
-- Mediana del equipo (estimación oficial): **1 h**
+- Mediana del equipo (estimación oficial): **2 h** (total del equipo: 6 h)
 - Real (miércoles 28): _pendiente de anotar_
 - ¿Qué tarea desvió más?: _pendiente_
 
