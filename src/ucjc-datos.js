@@ -1,5 +1,5 @@
 /**
- * <ucjc-datos> — Pieza DATOS (alternativa2) · DFE (76042) · Tienda UCJC
+ * <ucjc-pedidos> — Pieza DATOS (alternativa2) · DFE (76042) · Tienda UCJC
  *
  * Custom element en Vanilla JS, sin dependencias ni build.
  * Persistencia: IndexedDB (base "ucjc-datos-alt2").
@@ -8,13 +8,12 @@
  *   modo="admin"   -> vista de administración (tablas de pedidos, usuarios, sesiones)
  *   modo="pedido"  -> detalle de un pedido (atributo pedido-id="123")
  *
- * Eventos que CONSUME (window, CustomEvent con .detail):
- *   ucjc:compra:pedido-creado@1        { pedidoId, total, ... }
- *   ucjc:identidad:usuarios-listados@1 { usuarios: [...], roles: [...] }
+ * Eventos que CONSUME (canon @1 del PR de contratos):
+ *   ucjc:compra:pedido-confirmado@1   { pedidoId, usuarioId, creadoEn, total, lineas[] }
+ *   ucjc:identidad:sesion-cambiada@1  { autenticado, usuario|null, momento? }
  *
- * Eventos que EMITE:
- *   ucjc:datos:usuarios-solicitados@1  { campos: [...] }
- *   ucjc:datos:pedido-guardado@1       { pedidoId }
+ * Nota: la vista admin sigue usando IndexedDB local; ya no depende de
+ * listados masivos de usuarios por el bus.
  */
 
 const DB_NAME = 'ucjc-datos-alt2';
@@ -74,9 +73,6 @@ export const datos = {
   async guardarPedido(pedido) {
     const p = { descuentoEmpleado: 0, ...pedido };
     await this.guardar('pedidos', p);
-    window.dispatchEvent(
-      new CustomEvent('ucjc:datos:pedido-guardado@1', { detail: { pedidoId: p.id } })
-    );
     return p;
   },
 };
@@ -146,22 +142,20 @@ class UcjcDatos extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this._usuarioId = null;
     this._onPedido = (e) => this._recibirPedido(e.detail);
-    this._onUsuarios = (e) => this._recibirUsuarios(e.detail);
-    this._onGuardado = () => this.render();
+    this._onSesion = (e) => this._recibirSesion(e.detail);
   }
 
   connectedCallback() {
-    window.addEventListener('ucjc:compra:pedido-creado@1', this._onPedido);
-    window.addEventListener('ucjc:identidad:usuarios-listados@1', this._onUsuarios);
-    window.addEventListener('ucjc:datos:pedido-guardado@1', this._onGuardado);
+    window.addEventListener('ucjc:compra:pedido-confirmado@1', this._onPedido);
+    window.addEventListener('ucjc:identidad:sesion-cambiada@1', this._onSesion);
     this._iniciar();
   }
 
   disconnectedCallback() {
-    window.removeEventListener('ucjc:compra:pedido-creado@1', this._onPedido);
-    window.removeEventListener('ucjc:identidad:usuarios-listados@1', this._onUsuarios);
-    window.removeEventListener('ucjc:datos:pedido-guardado@1', this._onGuardado);
+    window.removeEventListener('ucjc:compra:pedido-confirmado@1', this._onPedido);
+    window.removeEventListener('ucjc:identidad:sesion-cambiada@1', this._onSesion);
   }
 
   attributeChangedCallback() { if (this.isConnected) this.render(); }
@@ -169,32 +163,41 @@ class UcjcDatos extends HTMLElement {
   async _iniciar() {
     await sembrarSiVacio();
     await datos.guardar('sesiones', { inicio: new Date().toISOString(), modo: this.getAttribute('modo') || 'pedido' });
-    // Contrato con Identidad: pedimos usuarios y roles (todo lo que necesitamos).
-    window.dispatchEvent(new CustomEvent('ucjc:datos:usuarios-solicitados@1', {
-      detail: { campos: ['id', 'nombre', 'email', 'rol'] },
-    }));
     this.render();
   }
 
-  /** Compra -> Datos: pedido (id) y total. Se completa con lo que haya. */
+  /** Compra → Datos: pedido-confirmado@1 */
   async _recibirPedido(d = {}) {
     if (!d.pedidoId) return;
-    const existente = (await datos.todos('pedidos')).find((p) => p.id === d.pedidoId) || {};
+    const primera = Array.isArray(d.lineas) && d.lineas[0] ? d.lineas[0].nombre : '—';
     await datos.guardarPedido({
       estado: 'pagado',
-      fecha: new Date().toISOString().slice(0, 10),
-      ...existente,
+      fecha: (d.creadoEn || new Date().toISOString()).slice(0, 10),
       id: d.pedidoId,
-      total: d.total ?? existente.total ?? 0,
-      userId: d.userId ?? existente.userId ?? null,
-      prenda: d.prenda ?? existente.prenda ?? '—',
+      total: d.total ?? 0,
+      userId: d.usuarioId ?? this._usuarioId ?? null,
+      prenda: primera,
+      lineas: d.lineas || [],
     });
+    this.render();
   }
 
-  /** Identidad -> Datos: usuarios y roles. */
-  async _recibirUsuarios(d = {}) {
-    for (const u of d.usuarios || []) await datos.guardar('usuarios', u);
-    for (const r of d.roles || []) await datos.guardar('roles', typeof r === 'string' ? { nombre: r, permisos: [] } : r);
+  /** Identidad → Datos: sesion-cambiada@1 (filtra «Mis pedidos») */
+  async _recibirSesion(d = {}) {
+    if (!d.autenticado) {
+      this._usuarioId = null;
+      this.render();
+      return;
+    }
+    this._usuarioId = d.usuario?.id ?? null;
+    if (d.usuario?.id) {
+      await datos.guardar('usuarios', {
+        id: d.usuario.id,
+        nombre: d.usuario.nombre || d.usuario.id,
+        email: d.usuario.email || '',
+        rol: 'cliente',
+      });
+    }
     this.render();
   }
 
@@ -214,7 +217,13 @@ class UcjcDatos extends HTMLElement {
   async _accion(a) {
     if (a === 'demo') {
       const n = (await datos.todos('pedidos')).length + 123;
-      await this._recibirPedido({ pedidoId: `#${n}`, total: +(10 + Math.random() * 50).toFixed(2), prenda: 'Camiseta UCJC' });
+      await this._recibirPedido({
+        pedidoId: `PED-${n}`,
+        usuarioId: this._usuarioId || 'u-demo',
+        creadoEn: new Date().toISOString(),
+        total: +(10 + Math.random() * 50).toFixed(2),
+        lineas: [{ productoId: 'prod-101', nombre: 'Camiseta UCJC', precio: 19.99, cantidad: 1 }],
+      });
     } else if (a === 'reset') {
       for (const s of ['pedidos', 'usuarios', 'roles', 'sesiones']) await datos.borrarTodo(s);
       await sembrarSiVacio();
@@ -245,9 +254,17 @@ class UcjcDatos extends HTMLElement {
 
   _vistaPedido(pedidos) {
     const id = this.getAttribute('pedido-id');
-    const lista = id ? pedidos.filter((p) => p.id === `#${id}` || p.id === id) : pedidos;
+    let lista = id ? pedidos.filter((p) => p.id === `#${id}` || p.id === id) : pedidos;
+    if (!id && this._usuarioId) {
+      lista = lista.filter((p) => p.userId === this._usuarioId);
+    } else if (!id && !this._usuarioId) {
+      lista = [];
+    }
+    const sub = this._usuarioId
+      ? `Filtrado por ${this._usuarioId}`
+      : 'Sin sesión — inicia sesión para ver tus pedidos';
     return `
-      <header><div><h2>Mis pedidos</h2><div class="sub">Detalle y estado</div></div></header>
+      <header><div><h2>Mis pedidos</h2><div class="sub">${esc(sub)}</div></div></header>
       <div class="card"><table>
         <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th class="num">Total</th></tr></thead>
         <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td class="num">${eur(p.total)}</td></tr>`).join('') || '<tr><td colspan="5" class="vacio">Sin pedidos.</td></tr>'}</tbody>
@@ -298,4 +315,6 @@ class UcjcDatos extends HTMLElement {
   }
 }
 
-if (!customElements.get('ucjc-datos')) customElements.define('ucjc-datos', UcjcDatos);
+if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
+
+export default { nombre: 'datos', version: '0.2.0' };

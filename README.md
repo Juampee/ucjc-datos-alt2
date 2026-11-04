@@ -12,7 +12,7 @@ Implementación **alternativa2** de la pieza **Datos** (compite en A/B testing c
 
 **Responsable:** Juan Pedro Fabo…
 
-**Custom element:** `<ucjc-datos>`
+**Custom element:** `<ucjc-pedidos>`
 
 ## Qué POSEE la pieza
 
@@ -31,8 +31,8 @@ Implementación **alternativa2** de la pieza **Datos** (compite en A/B testing c
 ## Uso
 
 ```html
-<ucjc-datos modo="admin"></ucjc-datos>      <!-- vista de administración -->
-<ucjc-datos modo="pedido" pedido-id="123"></ucjc-datos>
+<ucjc-pedidos modo="admin"></ucjc-pedidos>      <!-- vista de administración -->
+<ucjc-pedidos modo="pedido" pedido-id="123"></ucjc-pedidos>
 <script type="module" src="https://<url-de-la-release>/src/ucjc-datos.js"></script>
 ```
 
@@ -58,7 +58,7 @@ Estimaciones y tiempos reales en [TIEMPOS.md](TIEMPOS.md).
 
 ```
 ucjc-datos-alt2/
-├── src/ucjc-datos.js   # custom element <ucjc-datos> (único archivo que cargará el shell)
+├── src/ucjc-datos.js   # custom element <ucjc-pedidos> (único archivo que cargará el shell)
 ├── index.html          # demo local de la pieza sola, con datos fijos
 ├── package.json
 ├── README.md           # este archivo
@@ -66,4 +66,25 @@ ucjc-datos-alt2/
 └── TIEMPOS.md          # estimaciones y tiempos reales
 ```
 
-Cuando el shell defina su contrato de carga, solo habrá que adaptar la URL del script de la release (`src/ucjc-datos.js` en el tag correspondiente).
+Cuando el shell defina su contrato de carga, solo habrá que adaptar la URL del script de la release (``dist/remote.js` en el tag correspondiente).
+
+## Cómo se publica (contrato de carga del shell)
+
+Requisito: **Node ≥ 20** (el workflow usa Node 22). Custom element canónico: **`<ucjc-pedidos>`**.
+
+1. `npm ci && npm run build` → genera `dist/remote.js`.
+2. Etiquetar: `git tag v0.2.0 && git push origin v0.2.0`.
+3. Actions publica en `gh-pages/v0.2.0/`.
+4. *Settings → Pages* → rama **`gh-pages`**, carpeta **`/`**.
+
+URL esperada: `https://juampee.github.io/ucjc-datos-alt2/v0.2.0/remote.js`.
+
+Los nombres de eventos se alinean en otra PR cuando el PR #2 de contratos esté firmado.
+
+### Tests
+
+```bash
+npm test
+```
+
+Comprueban el custom element, el `export default` y el flujo mínimo de eventos `@1`.
