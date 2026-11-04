@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datos B · ucjc-pedidos · Tienda UCJC</title>
+<style>
+body{margin:0;padding:24px;background:#e9edf5;font-family:system-ui,sans-serif;color:#1b2330}
+.top{max-width:1100px;margin:0 auto 16px}
+.top h1{margin:0 0 4px;font-size:1.4rem}
+.top p{margin:0 0 12px;color:#4b5565;font-size:.92rem}
+.sim{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.sim button{font:inherit;font-size:.85rem;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;background:#1f3a8a;color:#fff}
+.sim button.sec{background:#fff;color:#1b2330;border:1px solid #c9d1e0}
+.app{max-width:1100px;margin:0 auto}
+code{background:#fff;padding:1px 6px;border-radius:4px;font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="top">
+<h1>Pieza Datos B &middot; <code>ucjc-pedidos</code></h1>
+<p>Tabla de datos de la pieza, lista para recibir los eventos de las otras piezas: <code>ucjc:compra:pedido-confirmado@1</code> y <code>ucjc:identidad:sesion-cambiada@1</code>. Los botones simulan esos avisos.</p>
+<div class="sim">
+<button id="b-ped">Simular pedido confirmado (Compra)</button>
+<button id="b-ses" class="sec">Simular inicio de sesión (Identidad)</button>
+<button id="b-fin" class="sec">Simular cierre de sesión</button>
+</div>
+</div>
+<div class="app"><ucjc-pedidos modo="admin"></ucjc-pedidos></div>
+<script type="module">
+import './v0.2.0/remote.js';
+var n = 200;
+function emit(nombre, detail){ window.dispatchEvent(new CustomEvent(nombre, { detail: detail })); }
+document.getElementById('b-ped').addEventListener('click', function(){
+  n++;
+  emit('ucjc:compra:pedido-confirmado@1', {
+    pedidoId: 'PED-' + n,
+    usuarioId: 'u-demo',
+    creadoEn: new Date().toISOString(),
+    total: 39.98,
+    lineas: [{ productoId: 'prod-101', nombre: 'Camiseta UCJC', precio: 19.99, cantidad: 2 }]
+  });
+});
+document.getElementById('b-ses').addEventListener('click', function(){
+  emit('ucjc:identidad:sesion-cambiada@1', {
+    autenticado: true,
+    usuario: { id: 'u-demo', nombre: 'Usuario demo', email: 'demo@ucjc.edu' },
+    momento: new Date().toISOString()
+  });
+});
+document.getElementById('b-fin').addEventListener('click', function(){
+  emit('ucjc:identidad:sesion-cambiada@1', { autenticado: false, usuario: null, momento: new Date().toISOString() });
+});
+</script>
+</body>
+</html>
