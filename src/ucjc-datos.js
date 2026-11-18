@@ -264,7 +264,7 @@ class UcjcDatos extends HTMLElement {
       ? `Filtrado por ${this._usuarioId}`
       : 'Sin sesión — inicia sesión para ver tus pedidos';
     return `
-      <header><div><h2>Mis pedidos</h2><div class="sub">${esc(sub)}</div></div></header>
+      <header><div><h2>Mis pedidos · Datos B</h2><div class="sub">${esc(sub)}</div></div><span class="badge">DATOS B</span></header>
       <div class="card"><table>
         <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th class="num">Total</th></tr></thead>
         <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td class="num">${eur(p.total)}</td></tr>`).join('') || '<tr><td colspan="5" class="vacio">Sin pedidos.</td></tr>'}</tbody>
@@ -276,7 +276,7 @@ class UcjcDatos extends HTMLElement {
     return `
       <header>
         <div><h2>Panel de datos</h2><div class="sub">Pieza Datos · alternativa2 · IndexedDB</div></div>
-        <span class="badge">ADMIN</span>
+        <span class="badge">DATOS B · ADMIN</span>
       </header>
       <section class="kpis">
         <div class="kpi"><span>Pedidos</span><b>${pedidos.length}</b></div>
@@ -317,4 +317,4 @@ class UcjcDatos extends HTMLElement {
 
 if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
 
-export default { nombre: 'datos', version: '0.2.0' };
+export default { nombre: 'datos', version: '0.2.1' };
