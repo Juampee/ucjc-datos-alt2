@@ -9,7 +9,7 @@
  *   modo="pedido"  -> detalle de un pedido (atributo pedido-id="123")
  *
  * Eventos que CONSUME (canon @1 del PR de contratos):
- *   ucjc:compra:pedido-confirmado@1   { pedidoId, usuarioId, creadoEn, total, lineas[] }
+ *   ucjc:compra:pedido-confirmado@1   { pedidoId, usuarioId, creadoEn, total, lineas[], moneda? }
  *   ucjc:identidad:sesion-cambiada@1  { autenticado, usuario|null, momento? }
  *
  * Nota: la vista admin sigue usando IndexedDB local; ya no depende de
@@ -82,9 +82,9 @@ async function sembrarSiVacio() {
   if ((await datos.todos('pedidos')).length) return;
   const demo = [
     { id: '#123', userId: 'u1', prenda: 'Camiseta UCJC', estado: 'en reparto', total: 19.9, fecha: '2026-10-12', descuentoEmpleado: 0 },
-    { id: '#124', userId: 'u2', prenda: 'Sudadera UCJC', estado: 'pagado', total: 39.5, fecha: '2026-10-14', descuentoEmpleado: 10 },
+    { id: '#124', userId: 'u2', prenda: 'Sudadera UCJC', estado: 'pagado', moneda: 'USD', total: 39.5, fecha: '2026-10-14', descuentoEmpleado: 10 },
     { id: '#125', userId: 'u1', prenda: 'Gorra UCJC', estado: 'entregado', total: 12, fecha: '2026-10-20', descuentoEmpleado: 0 },
-    { id: '#126', userId: 'u3', prenda: 'Mochila UCJC', estado: 'preparando', total: 34, fecha: '2026-10-28', descuentoEmpleado: 15 },
+    { id: '#126', userId: 'u3', prenda: 'Mochila UCJC', estado: 'preparando', moneda: 'GBP', total: 34, fecha: '2026-10-28', descuentoEmpleado: 15 },
   ];
   for (const p of demo) await datos.guardar('pedidos', p);
   await datos.guardar('usuarios', { id: 'u1', nombre: 'Ana Ruiz', email: 'ana@ucjc.edu', rol: 'cliente' });
@@ -97,7 +97,21 @@ async function sembrarSiVacio() {
 
 /* ------------------------------- Componente ------------------------------- */
 
-const eur = (n) => Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const MONEDAS = ['EUR', 'USD', 'GBP'];
+/** Moneda ISO 4217 permitida; si no viene o no se reconoce, se entiende EUR (contrato: campo opcional). */
+export const normalizarMoneda = (m) => {
+  const c = String(m ?? '').trim().toUpperCase();
+  return MONEDAS.includes(c) ? c : 'EUR';
+};
+const dinero = (n, moneda) =>
+  Number(n || 0).toLocaleString('es-ES', { style: 'currency', currency: normalizarMoneda(moneda) });
+/** Suma por moneda (no se mezclan monedas distintas): una línea por moneda. */
+const ingresosPorMoneda = (pedidos) => {
+  const t = {};
+  pedidos.forEach((p) => { const m = normalizarMoneda(p.moneda); t[m] = (t[m] || 0) + Number(p.total || 0); });
+  const claves = Object.keys(t);
+  return claves.length ? claves.map((m) => dinero(t[m], m)).join('<br>') : dinero(0, 'EUR');
+};
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -175,6 +189,7 @@ class UcjcDatos extends HTMLElement {
       fecha: (d.creadoEn || new Date().toISOString()).slice(0, 10),
       id: d.pedidoId,
       total: d.total ?? 0,
+      moneda: normalizarMoneda(d.moneda),
       userId: d.usuarioId ?? this._usuarioId ?? null,
       prenda: primera,
       lineas: d.lineas || [],
@@ -238,7 +253,7 @@ class UcjcDatos extends HTMLElement {
   }
 
   _filasPedidos(pedidos, usuarios) {
-    if (!pedidos.length) return `<tr><td colspan="7" class="vacio">Sin pedidos todavía.</td></tr>`;
+    if (!pedidos.length) return `<tr><td colspan="8" class="vacio">Sin pedidos todavía.</td></tr>`;
     const nombre = (id) => usuarios.find((u) => u.id === id)?.nombre ?? '—';
     return pedidos.map((p) => `
       <tr>
@@ -248,7 +263,8 @@ class UcjcDatos extends HTMLElement {
         <td>${esc(nombre(p.userId))}</td>
         <td>${esc(p.fecha)}</td>
         <td class="num">${p.descuentoEmpleado ? esc(p.descuentoEmpleado) + ' %' : '—'}</td>
-        <td class="num">${eur(p.total)}</td>
+        <td><span class="rol">${esc(normalizarMoneda(p.moneda))}</span></td>
+        <td class="num">${dinero(p.total, p.moneda)}</td>
       </tr>`).join('');
   }
 
@@ -266,13 +282,13 @@ class UcjcDatos extends HTMLElement {
     return `
       <header><div><h2>Mis pedidos · Datos B</h2><div class="sub">${esc(sub)}</div></div><span class="badge">DATOS B</span></header>
       <div class="card"><table>
-        <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th class="num">Total</th></tr></thead>
-        <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td class="num">${eur(p.total)}</td></tr>`).join('') || '<tr><td colspan="5" class="vacio">Sin pedidos.</td></tr>'}</tbody>
+        <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th>Moneda</th><th class="num">Total</th></tr></thead>
+        <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td>${esc(normalizarMoneda(p.moneda))}</td><td class="num">${dinero(p.total, p.moneda)}</td></tr>`).join('') || '<tr><td colspan="6" class="vacio">Sin pedidos.</td></tr>'}</tbody>
       </table></div>`;
   }
 
   _vistaAdmin(pedidos, usuarios, roles, sesiones) {
-    const ingresos = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
+    const ingresos = ingresosPorMoneda(pedidos);
     return `
       <header>
         <div><h2>Panel de datos</h2><div class="sub">Pieza Datos · alternativa2 · IndexedDB</div></div>
@@ -280,14 +296,14 @@ class UcjcDatos extends HTMLElement {
       </header>
       <section class="kpis">
         <div class="kpi"><span>Pedidos</span><b>${pedidos.length}</b></div>
-        <div class="kpi"><span>Ingresos</span><b>${eur(ingresos)}</b></div>
+        <div class="kpi"><span>Ingresos</span><b style="font-size:1.05rem;line-height:1.35">${ingresos}</b></div>
         <div class="kpi"><span>Usuarios</span><b>${usuarios.length}</b></div>
         <div class="kpi"><span>Sesiones</span><b>${sesiones.length}</b></div>
       </section>
       <div class="card">
         <h3>Pedidos guardados</h3>
         <table>
-          <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Usuario</th><th>Fecha</th><th class="num">Desc. empleado</th><th class="num">Total</th></tr></thead>
+          <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Usuario</th><th>Fecha</th><th class="num">Desc. empleado</th><th>Moneda</th><th class="num">Total</th></tr></thead>
           <tbody>${this._filasPedidos(pedidos, usuarios)}</tbody>
         </table>
       </div>
@@ -317,4 +333,4 @@ class UcjcDatos extends HTMLElement {
 
 if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
 
-export default { nombre: 'datos', version: '0.2.1' };
+export default { nombre: 'datos', version: '0.3.0' };
