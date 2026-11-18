@@ -43,9 +43,9 @@ Qué hace Datos B: filtra "Mis pedidos" por `usuario.id` y vacía la lista cuand
 
 Estos nombres de nuestro borrador antiguo ya no se usan: `ucjc:compra:pedido-creado@1` (sustituido por `pedido-confirmado@1`), `ucjc:identidad:usuarios-listados@1`, `ucjc:datos:usuarios-solicitados@1` y `ucjc:datos:pedido-guardado@1`. Roles y permisos no viajan por el bus: son de Identidad.
 
-## Pendiente: campo `moneda` (propuesta de Compra, 18/11/2026)
+## Campo `moneda` en `pedido-confirmado@1` (propuesta, pendiente de firma)
 
-Compra propone añadir `moneda` (`EUR`, `USD` o `GBP`) a `pedido-confirmado@1`. Postura de Datos B: a favor si es opcional (si no viene, se entiende `EUR`). Hoy no está en el contrato firmado.
+Datos B ya lo soporta desde la release v0.3.0: guarda `moneda`, la muestra en una columna y suma los ingresos por moneda. Si el campo no viene, se entiende `EUR`. Texto completo de la petición al resto de grupos: [CONTRATO-MONEDA.md](CONTRATO-MONEDA.md).
 
 ## Estado
 
