@@ -1,17 +1,52 @@
-# Contratos de eventos — pieza Datos (alternativa2)
+# Contratos de eventos — pieza Datos B (ucjc-datos-alt2)
 
-Formato: `ucjc:<pieza>:<verbo>@1`. El nombre lo pone el emisor; los campos se negocian entre ambos equipos.
-**Estado: propuesta inicial (borrador, a negociar mediante PR en el repo central).**
+Los contratos oficiales están firmados en https://github.com/cesar-andress/tienda-ucjc-contratos (carpeta eventos/, tag v0.2.0). Este fichero solo resume los que consume Datos B. Si hay diferencia, manda el repositorio de contratos.
 
-Los eventos se emiten con `window.dispatchEvent(new CustomEvent(nombre, { detail }))`.
+Formato del nombre: `ucjc:<pieza>:<verbo>@1`. Los eventos viajan con `window.dispatchEvent(new CustomEvent(nombre, { detail }))`.
 
-| Evento | Emite | Consume | Campos (nombre: tipo, obl./opc.) |
-|--------|-------|---------|----------------------------------|
-| `ucjc:datos:usuarios-solicitados@1` | Datos | Identidad | `campos: string[]` obl. (campos de usuario que necesitamos: id, nombre, email, rol) |
-| `ucjc:identidad:usuarios-listados@1` | Identidad | Datos | `usuarios: {id: string, nombre: string, email: string, rol: string}[]` obl.; `roles: {nombre: string, permisos: string[]}[]` obl. |
-| `ucjc:compra:pedido-creado@1` | Compra | Datos | `pedidoId: string` obl.; `total: number` obl.; `userId: string` opc.; `prenda: string` opc. |
-| `ucjc:datos:pedido-guardado@1` | Datos | (cualquiera) | `pedidoId: string` obl. |
+## Eventos que escucha Datos B (custom element `ucjc-pedidos`)
 
-## Conflictos abiertos
+| Evento | Emite | Consume | Contrato firmado |
+| --- | --- | --- | --- |
+| `ucjc:compra:pedido-confirmado@1` | Compra | Datos A y Datos B | ucjc-compra-pedido-confirmado@1.md |
+| `ucjc:identidad:sesion-cambiada@1` | Identidad | Compra, Datos A y Datos B | ucjc-identidad-sesion-cambiada@1.md |
 
-_Ninguno todavía. Abrir un issue por cada desacuerdo con otra pieza._
+Datos B no emite ningún evento.
+
+## `ucjc:compra:pedido-confirmado@1` — campos de `detail`
+
+| Campo | Tipo | Obligatorio / opcional |
+| --- | --- | --- |
+| `pedidoId` | texto | obligatorio (lo genera Compra) |
+| `usuarioId` | texto | obligatorio |
+| `creadoEn` | texto ISO 8601 | obligatorio |
+| `total` | número (euros) | obligatorio |
+| `lineas` | lista | obligatorio |
+
+Cada elemento de `lineas[]`: `productoId` (texto), `nombre` (texto), `precio` (número) y `cantidad` (número), todos obligatorios.
+
+Qué hace Datos B: guarda el pedido en IndexedDB con estado "pagado" y lo muestra en "Mis pedidos" si `usuarioId` coincide con el usuario de la sesión.
+
+## `ucjc:identidad:sesion-cambiada@1` — campos de `detail`
+
+| Campo | Tipo | Obligatorio / opcional |
+| --- | --- | --- |
+| `autenticado` | booleano | obligatorio |
+| `usuario` | objeto o `null` | obligatorio (`null` si `autenticado` es `false`) |
+| `momento` | texto ISO 8601 | opcional |
+
+Campos de `usuario` (cuando no es `null`): `id` (texto, obligatorio), `email` (texto, obligatorio) y `nombre` (texto, opcional).
+
+Qué hace Datos B: filtra "Mis pedidos" por `usuario.id` y vacía la lista cuando `autenticado` es `false`.
+
+## Eventos descartados (no forman parte de @1)
+
+Estos nombres de nuestro borrador antiguo ya no se usan: `ucjc:compra:pedido-creado@1` (sustituido por `pedido-confirmado@1`), `ucjc:identidad:usuarios-listados@1`, `ucjc:datos:usuarios-solicitados@1` y `ucjc:datos:pedido-guardado@1`. Roles y permisos no viajan por el bus: son de Identidad.
+
+## Pendiente: campo `moneda` (propuesta de Compra, 18/11/2026)
+
+Compra propone añadir `moneda` (`EUR`, `USD` o `GBP`) a `pedido-confirmado@1`. Postura de Datos B: a favor si es opcional (si no viene, se entiende `EUR`). Hoy no está en el contrato firmado.
+
+## Estado
+
+Firmado el 2026-11-04 (OK oral y release v0.2.0 que escucha ambos eventos). Responsable de Datos B: Juan Pedro Faba Prados.
