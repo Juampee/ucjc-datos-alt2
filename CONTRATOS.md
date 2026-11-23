@@ -47,6 +47,16 @@ Estos nombres de nuestro borrador antiguo ya no se usan: `ucjc:compra:pedido-cre
 
 Datos B ya lo soporta desde la release v0.3.0: guarda `moneda`, la muestra en una columna y suma los ingresos por moneda. Si el campo no viene, se entiende `EUR`. Texto completo de la petición al resto de grupos: [CONTRATO-MONEDA.md](CONTRATO-MONEDA.md).
 
+## Campaña de cada pedido (desde v0.4.0)
+
+Datos B muestra en qué campaña se hizo cada pedido (Black Friday, San Valentín, Navidad, Rebajas de enero, Vuelta al campus o Normal):
+
+1. Si Descubrimiento ha emitido `ucjc:descubrimiento:campana-cambiada@1` con `activa: true`, los pedidos que lleguen mientras dure se guardan con esa campaña (`codigo` + `etiqueta`). Este contrato sigue **propuesto**: Datos B solo lo escucha, no exige nada nuevo a nadie.
+2. Si no, se deduce de `creadoEn` con el calendario: Black Friday (viernes tras el 4.º jueves de noviembre → Cyber Monday), San Valentín (7–14 feb), Navidad (1 dic–6 ene), Rebajas de enero (7–31 ene), Vuelta al campus (septiembre).
+3. Fuera de esas fechas: **Normal**.
+
+No se añade ningún campo a `pedido-confirmado@1`.
+
 ## Estado
 
 Firmado el 2026-11-04 (OK oral y release v0.2.0 que escucha ambos eventos). Responsable de Datos B: Juan Pedro Faba Prados.

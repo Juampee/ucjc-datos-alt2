@@ -40,7 +40,9 @@ Demo local: `python3 -m http.server 8000` y abrir `http://localhost:8000`.
 
 ## Datos (IndexedDB `ucjc-datos-alt2`)
 
-- `pedidos`: `id, userId, prenda, estado, total, fecha, descuentoEmpleado`
+- `pedidos`: `id, userId, prenda, estado, total, fecha, descuentoEmpleado, moneda, campana`
+
+**Campaña** (v0.4.0): cada pedido muestra si se hizo en Black Friday, San Valentín, Navidad, Rebajas de enero, Vuelta al campus o en temporada Normal. Detalle en [CONTRATOS.md](CONTRATOS.md).
 - `usuarios` y `roles`: recibidos de Identidad (por seguridad, Identidad nos pasa los datos de usuario).
 - `sesiones`: sesiones guardadas.
 

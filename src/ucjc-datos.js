@@ -11,6 +11,10 @@
  * Eventos que CONSUME (canon @1 del PR de contratos):
  *   ucjc:compra:pedido-confirmado@1   { pedidoId, usuarioId, creadoEn, total, lineas[], moneda? }
  *   ucjc:identidad:sesion-cambiada@1  { autenticado, usuario|null, momento? }
+ *   ucjc:descubrimiento:campana-cambiada@1 { activa, codigo, etiqueta, momento }  (propuesto, opcional)
+ *
+ * Campaña de cada pedido: si Descubrimiento ha anunciado una campaña activa, se usa esa;
+ * si no, se deduce de la fecha del pedido (Black Friday, San Valentín, Navidad…); si no cae en ninguna, «Normal».
  *
  * Nota: la vista admin sigue usando IndexedDB local; ya no depende de
  * listados masivos de usuarios por el bus.
@@ -85,6 +89,9 @@ async function sembrarSiVacio() {
     { id: '#124', userId: 'u2', prenda: 'Sudadera UCJC', estado: 'pagado', moneda: 'USD', total: 39.5, fecha: '2026-10-14', descuentoEmpleado: 10 },
     { id: '#125', userId: 'u1', prenda: 'Gorra UCJC', estado: 'entregado', total: 12, fecha: '2026-10-20', descuentoEmpleado: 0 },
     { id: '#126', userId: 'u3', prenda: 'Mochila UCJC', estado: 'preparando', moneda: 'GBP', total: 34, fecha: '2026-10-28', descuentoEmpleado: 15 },
+    { id: '#127', userId: 'u1', prenda: 'Sudadera con capucha', estado: 'pagado', total: 19.98, fecha: '2026-11-27', descuentoEmpleado: 0, campana: { codigo: 'black-friday-2026', etiqueta: 'Black Friday' } },
+    { id: '#128', userId: 'u3', prenda: 'Taza de graduación', estado: 'entregado', total: 9.95, fecha: '2026-02-14', descuentoEmpleado: 0 },
+    { id: '#129', userId: 'u2', prenda: 'Bufanda de punto', estado: 'entregado', moneda: 'USD', total: 16, fecha: '2025-12-20', descuentoEmpleado: 10 },
   ];
   for (const p of demo) await datos.guardar('pedidos', p);
   await datos.guardar('usuarios', { id: 'u1', nombre: 'Ana Ruiz', email: 'ana@ucjc.edu', rol: 'cliente' });
@@ -112,6 +119,50 @@ const ingresosPorMoneda = (pedidos) => {
   const claves = Object.keys(t);
   return claves.length ? claves.map((m) => dinero(t[m], m)).join('<br>') : dinero(0, 'EUR');
 };
+/* -------------------------------- Campañas -------------------------------- */
+
+/** Black Friday = viernes siguiente al 4.º jueves de noviembre, hasta el Cyber Monday (4 días). */
+function rangoBlackFriday(anio) {
+  const d = new Date(Date.UTC(anio, 10, 1));
+  const primerJueves = 1 + ((4 - d.getUTCDay() + 7) % 7);
+  const viernes = primerJueves + 21 + 1;
+  const ini = Date.UTC(anio, 10, viernes);
+  return [ini, ini + 3 * 86400000];
+}
+
+export const CAMPANAS = {
+  'black-friday': { etiqueta: 'Black Friday', clase: 'c-bf' },
+  'san-valentin': { etiqueta: 'San Valentín', clase: 'c-sv' },
+  navidad: { etiqueta: 'Navidad', clase: 'c-nav' },
+  rebajas: { etiqueta: 'Rebajas de enero', clase: 'c-reb' },
+  'vuelta-campus': { etiqueta: 'Vuelta al campus', clase: 'c-vc' },
+  normal: { etiqueta: 'Normal', clase: 'c-normal' },
+};
+
+/** Deduce la campaña a partir de la fecha del pedido (YYYY-MM-DD o ISO). */
+export function campanaDeFecha(fecha) {
+  const t = Date.parse(String(fecha || '').slice(0, 10) + 'T00:00:00Z');
+  if (Number.isNaN(t)) return { codigo: 'normal', etiqueta: 'Normal' };
+  const f = new Date(t);
+  const anio = f.getUTCFullYear(); const mes = f.getUTCMonth() + 1; const dia = f.getUTCDate();
+  const [bi, bf] = rangoBlackFriday(anio);
+  const c = (id) => ({ codigo: id === 'normal' ? 'normal' : `${id}-${anio}`, etiqueta: CAMPANAS[id].etiqueta });
+  if (t >= bi && t <= bf) return c('black-friday');
+  if (mes === 2 && dia >= 7 && dia <= 14) return c('san-valentin');
+  if ((mes === 12 && dia >= 1) || (mes === 1 && dia <= 6)) return c('navidad');
+  if (mes === 1) return c('rebajas');
+  if (mes === 9) return c('vuelta-campus');
+  return c('normal');
+}
+
+/** Campaña guardada en el pedido o, si no la tiene (pedidos antiguos), la que corresponde a su fecha. */
+export const campanaDe = (p) => (p && p.campana && p.campana.etiqueta ? p.campana : campanaDeFecha(p && p.fecha));
+
+const claseCampana = (c) => {
+  const id = Object.keys(CAMPANAS).find((k) => String(c.codigo || '').startsWith(k));
+  return (CAMPANAS[id] || CAMPANAS.normal).clase;
+};
+
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -148,6 +199,16 @@ const ESTILOS = `
   button:hover { filter:brightness(1.1); }
   .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
   .rol { display:inline-block; background:#eef2ff; color:#3730a3; border-radius:6px; padding:2px 8px; font-size:.75rem; }
+  .campana { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.75rem; font-weight:600; white-space:nowrap; }
+  .c-bf { background:#111; color:#fff; }
+  .c-sv { background:#fde2e8; color:#9f1239; }
+  .c-nav { background:#dcfce7; color:#14532d; }
+  .c-reb { background:#ffedd5; color:#9a3412; }
+  .c-vc { background:#e0f2fe; color:#075985; }
+  .c-normal { background:#e5e7eb; color:#374151; }
+  .camp-activa { display:inline-flex; align-items:center; gap:6px; margin-top:6px; font-size:.8rem; color:#6b7585; }
+  .reparto { display:flex; flex-wrap:wrap; gap:8px; }
+  .reparto span { display:inline-flex; gap:6px; align-items:center; }
 `;
 
 class UcjcDatos extends HTMLElement {
@@ -159,17 +220,27 @@ class UcjcDatos extends HTMLElement {
     this._usuarioId = null;
     this._onPedido = (e) => this._recibirPedido(e.detail);
     this._onSesion = (e) => this._recibirSesion(e.detail);
+    this._campana = null; // campaña activa anunciada por Descubrimiento (campana-cambiada@1)
+    this._onCampana = (e) => this._recibirCampana(e.detail);
   }
 
   connectedCallback() {
     window.addEventListener('ucjc:compra:pedido-confirmado@1', this._onPedido);
     window.addEventListener('ucjc:identidad:sesion-cambiada@1', this._onSesion);
+    window.addEventListener('ucjc:descubrimiento:campana-cambiada@1', this._onCampana);
     this._iniciar();
   }
 
   disconnectedCallback() {
     window.removeEventListener('ucjc:compra:pedido-confirmado@1', this._onPedido);
     window.removeEventListener('ucjc:identidad:sesion-cambiada@1', this._onSesion);
+    window.removeEventListener('ucjc:descubrimiento:campana-cambiada@1', this._onCampana);
+  }
+
+  /** Descubrimiento → Datos: campana-cambiada@1 (propuesto). Solo marca los pedidos que lleguen mientras esté activa. */
+  _recibirCampana(d = {}) {
+    this._campana = d.activa && d.etiqueta ? { codigo: String(d.codigo || ''), etiqueta: String(d.etiqueta) } : null;
+    this.render();
   }
 
   attributeChangedCallback() { if (this.isConnected) this.render(); }
@@ -184,9 +255,11 @@ class UcjcDatos extends HTMLElement {
   async _recibirPedido(d = {}) {
     if (!d.pedidoId) return;
     const primera = Array.isArray(d.lineas) && d.lineas[0] ? d.lineas[0].nombre : '—';
+    const fecha = (d.creadoEn || new Date().toISOString()).slice(0, 10);
     await datos.guardarPedido({
       estado: 'pagado',
-      fecha: (d.creadoEn || new Date().toISOString()).slice(0, 10),
+      fecha,
+      campana: this._campana || campanaDeFecha(fecha),
       id: d.pedidoId,
       total: d.total ?? 0,
       moneda: normalizarMoneda(d.moneda),
@@ -252,8 +325,19 @@ class UcjcDatos extends HTMLElement {
     return `<span class="estado ${cls}">${esc(estado)}</span>`;
   }
 
+  _chipCampana(p) {
+    const c = campanaDe(p);
+    return `<span class="campana ${claseCampana(c)}">${esc(c.etiqueta)}</span>`;
+  }
+
+  _avisoCampana() {
+    return this._campana
+      ? `<div class="camp-activa">Campaña activa: <span class="campana ${claseCampana(this._campana)}">${esc(this._campana.etiqueta)}</span></div>`
+      : '';
+  }
+
   _filasPedidos(pedidos, usuarios) {
-    if (!pedidos.length) return `<tr><td colspan="8" class="vacio">Sin pedidos todavía.</td></tr>`;
+    if (!pedidos.length) return `<tr><td colspan="9" class="vacio">Sin pedidos todavía.</td></tr>`;
     const nombre = (id) => usuarios.find((u) => u.id === id)?.nombre ?? '—';
     return pedidos.map((p) => `
       <tr>
@@ -262,6 +346,7 @@ class UcjcDatos extends HTMLElement {
         <td>${this._badge(p.estado)}</td>
         <td>${esc(nombre(p.userId))}</td>
         <td>${esc(p.fecha)}</td>
+        <td>${this._chipCampana(p)}</td>
         <td class="num">${p.descuentoEmpleado ? esc(p.descuentoEmpleado) + ' %' : '—'}</td>
         <td><span class="rol">${esc(normalizarMoneda(p.moneda))}</span></td>
         <td class="num">${dinero(p.total, p.moneda)}</td>
@@ -280,18 +365,29 @@ class UcjcDatos extends HTMLElement {
       ? `Filtrado por ${this._usuarioId}`
       : 'Sin sesión — inicia sesión para ver tus pedidos';
     return `
-      <header><div><h2>Mis pedidos · Datos B</h2><div class="sub">${esc(sub)}</div></div><span class="badge">DATOS B</span></header>
+      <header><div><h2>Mis pedidos · Datos B</h2><div class="sub">${esc(sub)}</div>${this._avisoCampana()}</div><span class="badge">DATOS B</span></header>
       <div class="card"><table>
-        <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th>Moneda</th><th class="num">Total</th></tr></thead>
-        <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td>${esc(normalizarMoneda(p.moneda))}</td><td class="num">${dinero(p.total, p.moneda)}</td></tr>`).join('') || '<tr><td colspan="6" class="vacio">Sin pedidos.</td></tr>'}</tbody>
+        <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Fecha</th><th>Campaña</th><th>Moneda</th><th class="num">Total</th></tr></thead>
+        <tbody>${lista.map((p) => `<tr><td><b>${esc(p.id)}</b></td><td>${esc(p.prenda)}</td><td>${this._badge(p.estado)}</td><td>${esc(p.fecha)}</td><td>${this._chipCampana(p)}</td><td>${esc(normalizarMoneda(p.moneda))}</td><td class="num">${dinero(p.total, p.moneda)}</td></tr>`).join('') || '<tr><td colspan="7" class="vacio">Sin pedidos.</td></tr>'}</tbody>
       </table></div>`;
+  }
+
+  _reparto(pedidos) {
+    const n = {};
+    // Se agrupa por tipo (p. ej. «Black Friday» y «Black Friday UCJC» cuentan juntos).
+    pedidos.forEach((p) => {
+      const tipo = Object.keys(CAMPANAS).find((k) => String(campanaDe(p).codigo || '').startsWith(k)) || 'normal';
+      (n[tipo] ||= { tipo, total: 0 }).total++;
+    });
+    return Object.values(n).sort((a, b) => b.total - a.total)
+      .map(({ tipo, total }) => `<span><span class="campana ${CAMPANAS[tipo].clase}">${esc(CAMPANAS[tipo].etiqueta)}</span><b>${total}</b></span>`).join('') || '<span class="vacio">Sin pedidos.</span>';
   }
 
   _vistaAdmin(pedidos, usuarios, roles, sesiones) {
     const ingresos = ingresosPorMoneda(pedidos);
     return `
       <header>
-        <div><h2>Panel de datos</h2><div class="sub">Pieza Datos · alternativa2 · IndexedDB</div></div>
+        <div><h2>Panel de datos</h2><div class="sub">Pieza Datos · alternativa2 · IndexedDB</div>${this._avisoCampana()}</div>
         <span class="badge">DATOS B · ADMIN</span>
       </header>
       <section class="kpis">
@@ -301,9 +397,13 @@ class UcjcDatos extends HTMLElement {
         <div class="kpi"><span>Sesiones</span><b>${sesiones.length}</b></div>
       </section>
       <div class="card">
+        <h3>Pedidos por campaña</h3>
+        <div class="reparto">${this._reparto(pedidos)}</div>
+      </div>
+      <div class="card">
         <h3>Pedidos guardados</h3>
         <table>
-          <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Usuario</th><th>Fecha</th><th class="num">Desc. empleado</th><th>Moneda</th><th class="num">Total</th></tr></thead>
+          <thead><tr><th>ID</th><th>Prenda</th><th>Estado</th><th>Usuario</th><th>Fecha</th><th>Campaña</th><th class="num">Desc. empleado</th><th>Moneda</th><th class="num">Total</th></tr></thead>
           <tbody>${this._filasPedidos(pedidos, usuarios)}</tbody>
         </table>
       </div>
@@ -333,4 +433,4 @@ class UcjcDatos extends HTMLElement {
 
 if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
 
-export default { nombre: 'datos', version: '0.3.0' };
+export default { nombre: 'datos', version: '0.4.0' };
