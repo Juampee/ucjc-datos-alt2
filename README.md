@@ -31,7 +31,9 @@ Implementación **alternativa2** de la pieza **Datos** (compite en A/B testing c
 ## Uso
 
 ```html
-<ucjc-pedidos modo="admin"></ucjc-pedidos>      <!-- vista de administración -->
+<ucjc-pedidos></ucjc-pedidos>                   <!-- panel completo (por defecto, desde v0.4.1) -->
+<ucjc-pedidos modo="admin"></ucjc-pedidos>      <!-- lo mismo, explícito -->
+<ucjc-pedidos modo="pedido"></ucjc-pedidos>     <!-- solo «Mis pedidos» del usuario con sesión -->
 <ucjc-pedidos modo="pedido" pedido-id="123"></ucjc-pedidos>
 <script type="module" src="https://<url-de-la-release>/src/ucjc-datos.js"></script>
 ```

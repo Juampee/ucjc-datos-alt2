@@ -1,6 +1,6 @@
 {
   "name": "ucjc-datos-alt2",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Pieza Datos (alternativa2) - Tienda UCJC - DFE 76042 - custom element ucjc-pedidos",
   "type": "module",
   "private": true,

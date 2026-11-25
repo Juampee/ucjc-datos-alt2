@@ -5,8 +5,8 @@
  * Persistencia: IndexedDB (base "ucjc-datos-alt2").
  *
  * Atributos:
- *   modo="admin"   -> vista de administración (tablas de pedidos, usuarios, sesiones)
- *   modo="pedido"  -> detalle de un pedido (atributo pedido-id="123")
+ *   (sin modo) o modo="admin" -> panel completo (KPIs, campañas, pedidos, usuarios, roles, sesiones). Es lo que sale en la tienda.
+ *   modo="pedido"  -> «Mis pedidos» del usuario con sesión (o un pedido con pedido-id="123")
  *
  * Eventos que CONSUME (canon @1 del PR de contratos):
  *   ucjc:compra:pedido-confirmado@1   { pedidoId, usuarioId, creadoEn, total, lineas[], moneda? }
@@ -199,6 +199,7 @@ const ESTILOS = `
   button:hover { filter:brightness(1.1); }
   .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
   .rol { display:inline-block; background:#eef2ff; color:#3730a3; border-radius:6px; padding:2px 8px; font-size:.75rem; }
+  td { white-space:nowrap; } td:nth-child(2) { white-space:normal; }
   .campana { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.75rem; font-weight:600; white-space:nowrap; }
   .c-bf { background:#111; color:#fff; }
   .c-sv { background:#fde2e8; color:#9f1239; }
@@ -247,7 +248,7 @@ class UcjcDatos extends HTMLElement {
 
   async _iniciar() {
     await sembrarSiVacio();
-    await datos.guardar('sesiones', { inicio: new Date().toISOString(), modo: this.getAttribute('modo') || 'pedido' });
+    await datos.guardar('sesiones', { inicio: new Date().toISOString(), modo: this.getAttribute('modo') || 'admin' });
     this.render();
   }
 
@@ -290,7 +291,7 @@ class UcjcDatos extends HTMLElement {
   }
 
   async render() {
-    const modo = this.getAttribute('modo') || 'pedido';
+    const modo = this.getAttribute('modo') || 'admin';
     const [pedidos, usuarios, roles, sesiones] = await Promise.all([
       datos.todos('pedidos'), datos.todos('usuarios'), datos.todos('roles'), datos.todos('sesiones'),
     ]);
@@ -433,4 +434,4 @@ class UcjcDatos extends HTMLElement {
 
 if (!customElements.get('ucjc-pedidos')) customElements.define('ucjc-pedidos', UcjcDatos);
 
-export default { nombre: 'datos', version: '0.4.0' };
+export default { nombre: 'datos', version: '0.4.1' };

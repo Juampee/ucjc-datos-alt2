@@ -3,7 +3,7 @@ import mod, { datos, normalizarMoneda, campanaDeFecha, campanaDe } from './ucjc-
 
 describe('ucjc-pedidos (Datos B)', () => {
   it('exporta metadatos y API datos', () => {
-    expect(mod).toEqual({ nombre: 'datos', version: '0.4.0' });
+    expect(mod).toEqual({ nombre: 'datos', version: '0.4.1' });
     expect(typeof datos.guardarPedido).toBe('function');
     expect(customElements.get('ucjc-pedidos')).toBeTruthy();
     expect(customElements.get('ucjc-datos')).toBeFalsy();
